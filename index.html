@@ -1,0 +1,2147 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"/>
+  <title>专业PDF处理工具 - 终极整合 + 新功能</title>
+  <style>
+    :root {
+      --primary: #6366f1;       /* 主色 */
+      --background: #f8fafc;    /* 背景 */
+      --success: #22c55e;
+      --error: #ef4444;
+      --card-bg: #ffffff;
+      --border-color: #cbd5e1;
+
+      --reorder-button-bg: #ff9800; /* 一键重排按钮样式 */
+    }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--background);
+      margin: 0;
+      min-height: 100vh;
+    }
+
+    /*
+     * 三列布局：
+     * 左侧(控制面板) 320px, 中间(预览PDF页面) 1fr, 右侧(合并预览) 400px
+     */
+    .main-container {
+      max-width: 1600px;
+      margin: 2rem auto;
+      display: grid;
+      grid-template-columns: 320px 1fr 400px;
+      gap: 2rem;
+      padding: 0 1rem;
+    }
+
+    /* 左侧控制面板 */
+    .control-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    /* 上传区域 */
+    .upload-area {
+      background: var(--card-bg);
+      border: 2px dashed var(--border-color);
+      border-radius: 1rem;
+      height: 200px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      cursor: pointer;
+      transition: all 0.3s;
+      position: relative;
+      text-align: center;
+    }
+    .upload-area:hover {
+      border-color: var(--primary);
+      background: #f1f5f9;
+    }
+    .upload-area span {
+      color: #64748b;
+      margin-bottom: 0.5rem;
+    }
+
+    /* 进度条 */
+    .progress-container {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 4px;
+      background: #e2e8f0;
+      overflow: hidden;
+      border-radius: 0 0 1rem 1rem;
+    }
+    .progress-bar {
+      width: 0%;
+      height: 100%;
+      background: var(--primary);
+      transition: width 0.3s ease;
+    }
+
+    /* 颜色管理 */
+    .color-palette {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(40px,1fr));
+      gap: 0.5rem;
+      max-height: 140px;
+      overflow-y: auto;
+      padding: 0.5rem;
+      background: var(--card-bg);
+      border-radius: 0.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .color-add-btn {
+      background: #f1f5f9;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 0.25rem;
+      cursor: pointer;
+      height: 40px;
+    }
+    .color-add-btn:hover {
+      background: #e2e8f0;
+    }
+    .color-item {
+      width: 100%; height: 40px;
+      border-radius: 0.25rem;
+      position: relative;
+      cursor: pointer;
+    }
+    .color-delete {
+      position: absolute;
+      top: -8px; right: -8px;
+      width: 20px; height: 20px;
+      background: var(--error);
+      color: #fff;
+      border-radius: 50%;
+      font-size: 14px;
+      text-align: center;
+      line-height: 20px;
+      display: none;
+      cursor: pointer;
+    }
+    .color-item:hover .color-delete {
+      display: block;
+    }
+
+    /* 橡皮擦 & 查看预览 */
+    .eraser-toggle {
+      display: inline-block;
+      padding: 0.4rem 0.8rem;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      background: #f1f5f9;
+      color: #475569;
+      border: 1px solid #cbd5e1;
+      transition: all 0.2s;
+      margin-bottom: 0.5rem;
+    }
+    .eraser-toggle.active {
+      background: #f87171; /* 橡皮模式启用时给个明显的颜色 */
+      color: #fff;
+      border-color: #dc2626;
+    }
+    .preview-toggle {
+      display: inline-block;
+      padding: 0.4rem 0.8rem;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      background: #f1f5f9;
+      color: #475569;
+      border: 1px solid #cbd5e1;
+      transition: all 0.2s;
+    }
+    .preview-toggle.active {
+      background: #4ade80;
+      color: #fff;
+      border-color: #22c55e;
+    }
+
+    /* 导出设置 */
+    .advanced-settings {
+      background: var(--card-bg);
+      border-radius: 0.5rem;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+      padding: 1rem;
+    }
+    .export-presets {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    .preset-btn {
+      background: #f1f5f9;
+      border: none;
+      padding: 0.5rem;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .preset-btn:hover {
+      background: #e2e8f0;
+    }
+    .format-controls {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .format-controls label, .format-controls select {
+      font-size: 0.9rem;
+      color: #475569;
+    }
+    .export-btn {
+      width: 100%;
+      padding: 0.75rem;
+      background: var(--primary);
+      border: none;
+      border-radius: 0.5rem;
+      color: #fff;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 1rem;
+    }
+    .export-btn:hover {
+      background: #4f46e5;
+    }
+
+    /* 中间PDF(及图片)预览 */
+    .preview-canvas {
+      background: var(--card-bg);
+      border-radius: 1rem;
+      box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+      overflow-y: auto;
+      position: relative;
+      height: 85vh;
+      padding: 1rem;
+    }
+    .page-container {
+      position: relative;
+      margin: 0 auto 1rem auto;
+      transition: transform 0.2s;
+      border-bottom: 1px solid #e2e8f0;
+      border: 2px solid transparent;
+      border-radius: 0.5rem;
+      padding: 0.5rem 0;
+
+      /* 拖拽 */
+      cursor: move;
+    }
+    .page-container:hover {
+      background: #f9fafb;
+    }
+    .page-container canvas, 
+    .page-container img {
+      display: block;
+      margin: 0 auto;
+      max-width: 100%;
+    }
+
+    /* 小的“第X页”标签（不可选中） */
+    .page-label {
+      position: absolute;
+      top: 8px; left: 8px;
+      background: rgba(0,0,0,0.5);
+      color: #fff;
+      font-size: 0.8rem;
+      padding: 0.2rem 0.5rem;
+      border-radius: 0.25rem;
+      user-select: none;
+    }
+
+    /* 右侧合并预览 & 分组管理 */
+    .merged-preview {
+      background: var(--card-bg);
+      border-radius: 0.5rem;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+      height: 85vh;
+      overflow-y: auto;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    .group-preview {
+      border: 1px solid #e2e8f0;
+      border-radius: 0.5rem;
+      padding: 0.5rem;
+      margin-bottom: 1rem;
+      position: relative;
+    }
+    .group-header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+      cursor: move; /* 提示可拖拽分组 */
+    }
+    .group-color-box {
+      width: 20px; height: 20px;
+      border-radius: 0.25rem;
+    }
+    .group-title-input {
+      flex: 1; 
+      border: 1px solid #ccc;
+      border-radius: 0.25rem;
+      padding: 0.2rem 0.5rem;
+      font-size: 0.85rem;
+    }
+    .group-remove-btn {
+      position: absolute;
+      top: 0.5rem; right: 0.5rem;
+      background: var(--error);
+      color: #fff;
+      border: none;
+      border-radius: 0.25rem;
+      width: 24px; height: 24px;
+      cursor: pointer;
+      font-size: 16px;
+      line-height: 22px;
+      text-align: center;
+    }
+    .group-fullscreen-btn {
+      background: #4ade80;
+      border: none;
+      border-radius: 0.25rem;
+      padding: 0.3rem 0.6rem;
+      cursor: pointer;
+      font-size: 0.75rem;
+      color: #fff;
+      margin-left: auto;
+      margin-right: 2.5rem; /* 预留空间给删除按钮 */
+    }
+    .group-fullscreen-btn:hover {
+      background: #22c55e;
+    }
+    .group-merged-preview-img {
+      max-width: 100%;
+      max-height: 100px;
+      display: block;
+      border: 1px solid #ddd;
+      margin-bottom: 0.5rem;
+    }
+    .group-pages {
+      font-size: 0.85rem;
+      color: #475569;
+      margin-bottom: 0.5rem;
+    }
+    .preview-scroll {
+      overflow-x: auto;
+      max-width: 100%;
+      white-space: nowrap;
+    }
+    .preview-scroll img {
+      max-height: 150px;
+      display: inline-block;
+      margin-right: 0.5rem;
+    }
+
+    /* Toast：支持自动隐藏动画 */
+    .toast {
+      position: fixed;
+      top: 1rem; right: 1rem;
+      background: #fff;
+      padding: 1rem;
+      border-radius: 0.5rem;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      display: none;
+      z-index: 9999;
+      width: 250px;
+      border-left: 6px solid transparent; /* 动态赋色 */
+      transition: transform 0.4s ease-in-out, opacity 0.4s ease;
+      transform: translateX(0);
+    }
+    .toast.show {
+      display: block;
+    }
+    .toast.slide-out {
+      transform: translateX(120%);
+      opacity: 0;
+    }
+    .toast-message {
+      margin: 0;
+      font-size: 0.875rem;
+      color: #475569;
+    }
+
+    /* 鼠标高亮(颜色点/橡皮) */
+    .cursor-highlight {
+      position: fixed;
+      width: 16px; height: 16px;
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 9999;
+      mix-blend-mode: difference;
+      display: none;
+    }
+
+    /* 拖拽样式 */
+    .droptarget-hover {
+      outline: 2px dashed #22c55e;
+    }
+    .dragging {
+      opacity: 0.6;
+    }
+
+    /* 小缩略图(分组里) */
+    .page-thumb {
+      display: inline-block;
+      margin-right: 0.5rem;
+      position: relative;
+      cursor: move;
+    }
+    .page-thumb.dragging {
+      opacity: 0.5;
+      border: 2px dashed #444;
+    }
+
+    /* 新增：一键重排 + 清空分组按钮 */
+    .reorder-btn {
+      padding: 0.5rem 1rem;
+      background: var(--reorder-button-bg);
+      color: #fff;
+      font-weight: 600;
+      border: none;
+      border-radius: 0.5rem;
+      cursor: pointer;
+    }
+    .reorder-btn:hover {
+      background: #fb8c00;
+    }
+    .clear-groups-btn {
+      padding: 0.5rem 1rem;
+      background: #dc2626;
+      color: #fff;
+      font-weight: 600;
+      border: none;
+      border-radius: 0.5rem;
+      cursor: pointer;
+    }
+    .clear-groups-btn:hover {
+      background: #b91c1c;
+    }
+
+    /* 全屏预览模态窗 (分组预览) */
+    .fullscreen-modal {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 99999;
+      display: none; /* 初始隐藏 */
+      justify-content: center;
+      align-items: center;
+    }
+    .fullscreen-modal.active {
+      display: flex;
+    }
+    .fullscreen-content {
+      width: 90%;
+      height: 90%;
+      background: #fff;
+      border-radius: 0.5rem;
+      display: grid;
+      grid-template-columns: 300px 1fr;
+      gap: 1rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .fullscreen-left {
+      background: #f9fafb;
+      padding: 1rem;
+      overflow-y: auto;
+    }
+    .fullscreen-right {
+      background: #ffffff;
+      padding: 1rem;
+      overflow-y: auto;
+      position: relative;
+    }
+    .fullscreen-close-btn {
+      position: absolute; top: 1rem; right: 1rem;
+      background: var(--error);
+      color: #fff;
+      border: none;
+      border-radius: 0.25rem;
+      width: 32px; height: 32px;
+      cursor: pointer;
+      font-size: 20px;
+      line-height: 30px;
+      text-align: center;
+      z-index: 999999;
+    }
+    .fullscreen-title {
+      margin: 0 0 1rem 0;
+      font-size: 1.2rem;
+      font-weight: 600;
+    }
+    .fullscreen-left .page-item {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 0.25rem;
+      margin-bottom: 0.5rem;
+      padding: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      cursor: move;
+    }
+    .page-item:hover {
+      background: #f1f5f9;
+    }
+    .page-item img {
+      max-width: 50px;
+      max-height: 70px;
+    }
+    .delete-page-btn {
+      margin-left: auto;
+      background: var(--error);
+      color: #fff;
+      border: none;
+      border-radius: 0.25rem;
+      width: 24px; height: 24px;
+      cursor: pointer;
+      font-size: 16px;
+      line-height: 22px;
+      text-align: center;
+    }
+    .preview-large-img {
+      max-width: 100%;
+      border: 1px solid #e5e7eb;
+      margin-bottom: 1rem;
+      display: block;
+    }
+    .fs-actions {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+    .fs-button {
+      background: #93c5fd;
+      color: #fff;
+      border: none;
+      border-radius: 0.25rem;
+      padding: 0.3rem 0.6rem;
+      cursor: pointer;
+      font-size: 0.75rem;
+    }
+    .fs-button:hover {
+      background: #60a5fa;
+    }
+
+    /* 新增：查看大图模式 */
+    .image-modal {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 999999;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+    .image-modal.active {
+      display: flex;
+    }
+    .image-modal-content {
+      position: relative;
+      background: #fff;
+      max-width: 80%;
+      max-height: 80%;
+      border-radius: 0.5rem;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      overflow: hidden;
+    }
+    .image-modal-close {
+      position: absolute;
+      top: 1rem; right: 1rem;
+      background: var(--error);
+      color: #fff;
+      border: none;
+      border-radius: 50%;
+      width: 32px; height: 32px;
+      cursor: pointer;
+      font-size: 20px;
+      line-height: 30px;
+      text-align: center;
+    }
+    .image-modal-img {
+      max-width: 100%;
+      max-height: calc(100% - 80px);
+      margin: auto;
+      display: block;
+      border: 1px solid #ccc;
+    }
+    .image-modal-nav {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      pointer-events: none;
+    }
+    .image-modal-nav button {
+      pointer-events: auto;
+      background: rgba(0,0,0,0.5);
+      color: #fff;
+      border: none;
+      width: 40px; height: 40px;
+      font-size: 18px;
+      border-radius: 0.25rem;
+      cursor: pointer;
+    }
+  </style>
+</head>
+
+<body>
+<!-- 自定义鼠标光标(颜色点/橡皮模式) -->
+<div id="cursorDot" class="cursor-highlight"></div>
+
+<div class="main-container">
+  <!-- 左侧控制面板 -->
+  <div class="control-panel">
+    <!-- 1. 上传PDF区域 -->
+    <div class="upload-area" id="dropZone" 
+        ondragover="event.preventDefault()" 
+        ondrop="handleFileDrop(event)">
+    <span>📁 拖拽或点击选择 PDF 或图片</span>
+    <input type="file" id="fileInput" accept="application/pdf,image/jpeg,image/png" multiple hidden>
+    <div class="progress-container">
+    <div class="progress-bar" id="globalProgress"></div>
+    </div>
+    </div>
+
+    <!-- 2. 颜色管理 -->
+    <div class="color-palette" id="colorPalette">
+      <div class="color-add-btn" onclick="showColorPicker()">+</div>
+      <!-- 默认颜色由JS初始化 -->
+    </div>
+
+    <!-- 橡皮擦 & 查看预览 -->
+    <button id="eraserBtn" class="eraser-toggle" onclick="toggleEraserMode()">
+      橡皮功能：关闭
+    </button>
+    <button id="viewBtn" class="preview-toggle" onclick="toggleViewMode()">
+      查看预览：关闭
+    </button>
+
+    <!-- 3. 导出设置 -->
+    <div class="advanced-settings" id="exportSettingsArea">
+      <div class="export-presets">
+        <button class="preset-btn" onclick="applyPreset('web')">网页使用 (72dpi)</button>
+        <button class="preset-btn" onclick="applyPreset('print')">印刷质量 (300dpi)</button>
+      </div>
+
+      <div class="format-controls">
+        <label>输出格式：
+          <select id="exportFormat" onchange="updateFormatOptions()">
+            <option value="png">PNG</option>
+            <option value="jpg">JPEG</option>
+            <option value="pdf-single">PDF(单文件)</option>
+            <option value="pdf-multi">PDF(多文件)</option>
+          </select>
+        </label>
+        <div id="imageOptions">
+          <label>图像质量：<span id="qualityValue">100</span>%
+            <input type="range" min="50" max="100" value="100"
+                   oninput="updateQuality(this.value)">
+          </label>
+          <label>分辨率：
+            <select id="dpiSelect">
+              <option value="72">72 DPI</option>
+              <option value="150">150 DPI</option>
+              <option value="300" selected>300 DPI</option>
+            </select>
+          </label>
+        </div>
+        <div id="pdfOptions" style="display:none">
+          <label>
+            <input type="checkbox" id="compressPDF" checked> 启用压缩(示意)
+          </label>
+          <label>PDF版本：
+            <select id="pdfVersion">
+              <option value="1.7">1.7 (较新)</option>
+              <option value="1.4">1.4 (更兼容)</option>
+            </select>
+          </label>
+        </div>
+      </div>
+
+      <button class="export-btn" onclick="startExport()">🚀 开始导出</button>
+    </div>
+  </div>
+
+  <!-- 中间 PDF/图片 预览区 -->
+  <div class="preview-canvas" id="previewArea"></div>
+
+  <!-- 右侧合并预览 & 分组管理 -->
+  <div class="merged-preview" id="mergedPreviewArea">
+    <h3 style="margin-top:0;">合并预览 & 分组管理</h3>
+    <p style="font-size:0.85rem;color:#475569;">
+      拖拽分组或页面排序；<br/>
+      “全屏预览”可再次排序/删除页面；<br/>
+      “一键重排”快速编号；“清空分组”会清除所有标记。
+    </p>
+    <div style="display:flex; gap:0.5rem; margin-bottom:0.5rem;">
+      <button class="reorder-btn" onclick="reorderGroupNames()">一键重排编号</button>
+      <button class="clear-groups-btn" onclick="clearAllGroups()">清空分组</button>
+    </div>
+    <!-- 动态生成 group-preview -->
+  </div>
+</div>
+
+<!-- Toast 提示 -->
+<div id="toast" class="toast">
+  <p class="toast-message" id="toastMessage"></p>
+</div>
+
+<!-- 全屏预览弹窗(分组) -->
+<div id="fullscreenModal" class="fullscreen-modal">
+  <div class="fullscreen-content">
+    <button class="fullscreen-close-btn" onclick="closeFullscreenModal()">×</button>
+    <div class="fullscreen-left" id="fsLeftPanel">
+      <h4 class="fullscreen-title" id="fsLeftTitle"></h4>
+      <div class="fs-actions">
+        <button class="fs-button" onclick="sortFsPagesByNumber()">按页码顺序</button>
+        <button class="fs-button" onclick="saveFsPageOrder()">保存当前顺序</button>
+      </div>
+      <!-- page-item列表 -->
+    </div>
+    <div class="fullscreen-right">
+      <h4 class="fullscreen-title" id="fsRightTitle">合并预览</h4>
+      <div id="fsPreviewImgs"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 查看大图(点击页面或缩略图时,若“查看预览”模式启用) -->
+<div id="imageModal" class="image-modal">
+  <div class="image-modal-content">
+    <button class="image-modal-close" onclick="closeImageModal()">×</button>
+    <img id="imageModalImg" class="image-modal-img" src="" alt="大图预览"/>
+    <div class="image-modal-nav">
+      <button id="imageModalPrev" onclick="gotoModalPrevPage()">←</button>
+      <button id="imageModalNext" onclick="gotoModalNextPage()">→</button>
+    </div>
+  </div>
+</div>
+
+<!-- 引入 PDF.js & PDF-lib -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+
+<script>
+/* ===============================================
+ * 全局状态
+ * ===============================================*/
+let appState = {
+  // PDF doc
+  pdfDoc: null,
+  totalPages: 0,
+
+  // 记录每一页的颜色(多色)
+  // 对于“图片序列”，可将它们也视作“page”，编号接在pdf后面？
+  // 或另存数组？此处演示将它们统一放在 mainPageOrder 里。
+  pageColors: {},  // key=pageId, value=Set(colors)
+
+  // 主要预览的页面顺序(既包含pdfPage1..N,也可能包含imgPage1..M)
+  // element like {type:'pdf', pageNum:1} or {type:'img', id:'img_003'}
+  mainPageOrder: [],
+
+  // 当前颜色
+  currentColor: '#fecaca',
+
+  // 橡皮 & 预览模式
+  eraserMode: false,
+  viewMode: false, // true表示“查看预览”功能开启
+
+  // SHIFT 连选
+  lastClickedPage: null,
+
+  // 分组名称 & 顺序
+  groupNames: {},   // color->string
+  groupOrder: [],   // color数组
+
+  // 为了支持“在全屏里自定义排序后，保存到合并预览”：
+  // customPageOrder[color] = [pageId1, pageId2, ...]
+  // pageId形如 "pdf-3" 或 "img-001"
+  customPageOrder: {},
+
+  // 导出设置
+  exportSettings: {
+    format: 'png',
+    quality: 1.0,
+    dpi: 300,
+    pdfVersion: '1.7',
+    compress: true
+  },
+
+  // 用于存储“图片序列” => {id:'img-xxx', file:File, dataURL:String}
+  imagePages: []
+};
+
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+/* ====================================================
+ * 1. 选择PDF文件 / 拖拽
+ * ====================================================*/
+const fileInput = document.getElementById('fileInput');
+const dropZone = document.getElementById('dropZone');
+
+dropZone.addEventListener('click',()=>fileInput.click());
+fileInput.onchange = handleFileSelect;
+
+function handleFileDrop(e){
+  e.preventDefault();
+  let file=e.dataTransfer.files[0];
+  if(file){
+    fileInput.files=e.dataTransfer.files;
+    handleFileSelect({target:{files:e.dataTransfer.files}});
+  }
+}
+
+async function handleFileSelect(e){
+  const file=e.target.files[0];
+  if(!file)return;
+  try{
+    showLoading('正在加载PDF...');
+    const fr=new FileReader();
+    fr.onload=async()=>{
+      const pdfData=new Uint8Array(fr.result);
+      appState.pdfDoc=await pdfjsLib.getDocument({data:pdfData}).promise;
+      appState.totalPages=appState.pdfDoc.numPages;
+      // 清理
+      appState.pageColors={};
+      appState.mainPageOrder=[];
+      appState.lastClickedPage=null;
+      appState.groupNames={};
+      appState.groupOrder=[];
+      appState.customPageOrder={};
+      // 构造pdf页
+      for(let p=1;p<=appState.totalPages;p++){
+        appState.mainPageOrder.push({type:'pdf', pageNum:p});
+        appState.pageColors[`pdf-${p}`] = new Set();
+      }
+      // 渲染
+      await renderMainPreview();
+      hideLoading();
+      showToast(`PDF加载完成,共${appState.totalPages}页`);
+      updateMergedPreview();
+    };
+    fr.onprogress=(ev)=>{
+      if(ev.lengthComputable){
+        updateProgress((ev.loaded/ev.total)*100);
+      }
+    };
+    fr.readAsArrayBuffer(file);
+  }catch(err){
+    showError('加载PDF失败: '+err.message);
+  }
+}
+
+/* ================================================
+ * 1.2 选择文件夹(导入序列图片)
+ * ================================================*/
+async function handleImageFolderSelect(e){
+  const files=[...e.target.files];
+  if(!files.length) return;
+  // 过滤掉不是png/jpg的
+  const imageFiles=files.filter(f=>{
+    const nm=f.name.toLowerCase();
+    return nm.endsWith('.png')||nm.endsWith('.jpg')||nm.endsWith('.jpeg');
+  });
+  if(!imageFiles.length){
+    showToast('该文件夹不含任何png/jpg','error');
+    return;
+  }
+  showLoading('正在读取图片...');
+  // 按文件名自然排序
+  imageFiles.sort((a,b)=> a.name.localeCompare(b.name,undefined,{numeric:true}));
+
+  // 逐个读取 dataURL
+  let idxStart = 1 + appState.imagePages.length; // 若之前已导入过
+  for(let i=0;i<imageFiles.length;i++){
+    let f=imageFiles[i];
+    let rr=await readFileToDataURL(f);
+    let id=`img-${String(idxStart+i).padStart(3,'0')}`;
+    appState.imagePages.push({
+      id, file:f, dataURL:rr
+    });
+    // 同步 mainPageOrder & pageColors
+    appState.mainPageOrder.push({type:'img', id});
+    appState.pageColors[id] = new Set();
+  }
+  // 重新渲染
+  await renderMainPreview();
+  hideLoading();
+  showToast(`已导入 ${imageFiles.length} 张图片`);
+  updateMergedPreview();
+}
+
+function readFileToDataURL(file){
+  return new Promise((resolve,reject)=>{
+    const fr=new FileReader();
+    fr.onload=()=>resolve(fr.result);
+    fr.onerror=reject;
+    fr.readAsDataURL(file);
+  });
+}
+
+
+/* ================================================
+ * 2. 中间主预览(包含pdf pages & img pages)
+ * ================================================*/
+const previewArea=document.getElementById('previewArea');
+
+async function renderMainPreview(){
+  previewArea.innerHTML='';
+  updateProgress(0);
+
+  // 拖拽事件(用于拖拽重排主顺序)
+  previewArea.addEventListener('dragstart',mainPageDragStart);
+  previewArea.addEventListener('dragend',mainPageDragEnd);
+  previewArea.addEventListener('dragover',mainPageDragOver);
+  previewArea.addEventListener('drop',mainPageDrop);
+
+  // 监听鼠标(上色/橡皮) 
+  previewArea.addEventListener('mousedown',onPreviewMouseDown);
+  previewArea.addEventListener('mousemove',onPreviewMouseMove);
+  previewArea.addEventListener('mouseup',onPreviewMouseUp);
+  previewArea.addEventListener('mouseleave',onPreviewMouseUp);
+
+  const total = appState.mainPageOrder.length;
+  for(let i=0;i<total;i++){
+    let item = appState.mainPageOrder[i];
+    let container = document.createElement('div');
+    container.className='page-container';
+    container.draggable=true; // 允许拖拽
+    let pageId='';
+    if(item.type==='pdf'){
+      pageId=`pdf-${item.pageNum}`;
+      container.dataset.pageid=pageId;
+
+      const label=document.createElement('div');
+      label.className='page-label';
+      label.textContent=`第 ${item.pageNum} 页`;
+      container.appendChild(label);
+
+      // pdf离屏渲染
+      const page=await appState.pdfDoc.getPage(item.pageNum);
+      const scale=0.3;
+      const viewport=page.getViewport({scale});
+      const cv=document.createElement('canvas');
+      cv.width=viewport.width; cv.height=viewport.height;
+      await page.render({
+        canvasContext: cv.getContext('2d'),
+        viewport
+      }).promise;
+      container.appendChild(cv);
+    } else {
+      // image page
+      pageId=item.id; // 'img-xxx'
+      container.dataset.pageid=pageId;
+
+      // 也可显示 label
+      const label=document.createElement('div');
+      label.className='page-label';
+      label.textContent=`图片 ${pageId.replace('img-','')}`;
+      container.appendChild(label);
+
+      // 加载 dataURL
+      let imgObj=appState.imagePages.find(x=>x.id===pageId);
+      if(imgObj){
+        let im=document.createElement('img');
+        im.src=imgObj.dataURL;
+        container.appendChild(im);
+      }
+    }
+
+    // 给 container 边框
+    updatePageContainerBorder(container,pageId);
+
+    // 如果处于“查看预览”模式, 点击可直接弹窗看大图
+    container.addEventListener('click',(evt)=>{
+      if(isDragging) return; // 正在拖拽
+      if(!isMouseDown) return; // 也可能点下
+      if(appState.viewMode){
+        openImageModal(pageId);
+      } else {
+        // 否则做上色
+        if(!isDragging){
+          handlePageClick(pageId,evt);
+        }
+      }
+    });
+
+    previewArea.appendChild(container);
+    updateProgress(((i+1)/total)*100);
+  }
+}
+
+// 记录是否在mousedown(用于区分单击 vs 拖拽)
+let isMouseDown=false;
+function onPreviewMouseDown(e){
+  const cont=findPageContainer(e);
+  if(cont){
+    isMouseDown=true;
+    isDragging=true;
+    handlePageClick(cont.dataset.pageid,e);
+  }
+}
+function onPreviewMouseMove(e){
+  if(!isDragging||!isMouseDown||appState.viewMode) return;
+  const cont=findPageContainer(e);
+  if(cont){
+    handlePageClick(cont.dataset.pageid,e);
+  }
+}
+function onPreviewMouseUp(e){
+  isMouseDown=false;
+  isDragging=false;
+}
+function findPageContainer(e){
+  const el=document.elementFromPoint(e.clientX,e.clientY);
+  if(!el) return null;
+  if(el.classList.contains('page-container')) return el;
+  if(el.parentElement?.classList.contains('page-container')) return el.parentElement;
+  return null;
+}
+
+// 上色/橡皮
+let isDragging=false;
+function handlePageClick(pageId,evt){
+  const shift=evt.shiftKey;
+  if(!shift){
+    applyColorOne(pageId);
+    appState.lastClickedPage=pageId;
+  } else {
+    if(appState.lastClickedPage===null){
+      applyColorOne(pageId);
+      appState.lastClickedPage=pageId;
+    } else {
+      // “区间”仅对pdf页有意义(数字顺序)
+      // 这里也可尝试对mainPageOrder找到这2个位置
+      let list=appState.mainPageOrder.map(x=>x.type==='pdf'?`pdf-${x.pageNum}`:x.id);
+      let idx1=list.indexOf(appState.lastClickedPage);
+      let idx2=list.indexOf(pageId);
+      if(idx1<0||idx2<0){
+        applyColorOne(pageId);
+        appState.lastClickedPage=pageId;
+      } else {
+        let start=Math.min(idx1,idx2), end=Math.max(idx1,idx2);
+        for(let i=start;i<=end;i++){
+          let pid=list[i];
+          applyColorOne(pid);
+        }
+      }
+    }
+  }
+}
+function applyColorOne(pageId){
+  if(!appState.pageColors[pageId]){
+    appState.pageColors[pageId]=new Set();
+  }
+  let cset=appState.pageColors[pageId];
+  if(appState.eraserMode){
+    if(cset.size<=1){
+      cset.clear();
+      showToast(`已擦除 ${pageId} 的颜色`);
+    } else {
+      if(cset.has(appState.currentColor)){
+        cset.delete(appState.currentColor);
+        showToast(`已擦除 ${pageId} 的 ${appState.currentColor}`);
+      }
+    }
+  } else {
+    cset.add(appState.currentColor);
+    if(!appState.groupOrder.includes(appState.currentColor)){
+      appState.groupOrder.push(appState.currentColor);
+    }
+  }
+  const container=previewArea.querySelector(`.page-container[data-pageid='${pageId}']`);
+  if(container) updatePageContainerBorder(container,pageId);
+  updateMergedPreview();
+}
+
+function updatePageContainerBorder(container,pageId){
+  let cset=appState.pageColors[pageId];
+  if(cset&&cset.size>0){
+    container.style.borderColor=[...cset][0];
+  } else {
+    container.style.borderColor='transparent';
+  }
+}
+
+/* ================================================
+ * 2.1 主预览排序(拖拽)
+ * ================================================*/
+let draggedMainPage=null;
+function mainPageDragStart(e){
+  if(e.target.classList.contains('page-container')){
+    draggedMainPage=e.target;
+    e.target.classList.add('dragging');
+  }
+}
+function mainPageDragEnd(e){
+  if(draggedMainPage){
+    draggedMainPage.classList.remove('dragging');
+  }
+  draggedMainPage=null;
+  // 保存顺序
+  saveMainPageOrderFromDOM();
+}
+function mainPageDragOver(e){
+  e.preventDefault();
+  let tgt=e.target;
+  if(tgt.classList.contains('page-container')&&tgt!==draggedMainPage){
+    tgt.classList.add('droptarget-hover');
+  }
+}
+function mainPageDrop(e){
+  e.preventDefault();
+  let tgt=e.target;
+  if(tgt.classList.contains('page-container')){
+    tgt.classList.remove('droptarget-hover');
+    if(draggedMainPage&&draggedMainPage!==tgt){
+      let parent=previewArea;
+      let arr=[...parent.querySelectorAll('.page-container')];
+      let drI=arr.indexOf(draggedMainPage);
+      let tgI=arr.indexOf(tgt);
+      if(drI<tgI){
+        parent.insertBefore(draggedMainPage,tgt.nextSibling);
+      } else {
+        parent.insertBefore(draggedMainPage,tgt);
+      }
+    }
+  }
+}
+function saveMainPageOrderFromDOM(){
+  let containers=[...previewArea.querySelectorAll('.page-container')];
+  let newOrder=[];
+  for(let c of containers){
+    let pid=c.dataset.pageid; // e.g. 'pdf-3' or 'img-001'
+    if(pid.startsWith('pdf-')){
+      let pn=parseInt(pid.replace('pdf-',''));
+      newOrder.push({type:'pdf',pageNum:pn});
+    } else {
+      newOrder.push({type:'img',id:pid});
+    }
+  }
+  appState.mainPageOrder=newOrder;
+}
+
+
+/* ================================================
+ * 3. 颜色系统(多色) + 橡皮擦
+ * ================================================*/
+const colorPalette=document.getElementById('colorPalette');
+const defaultColors=['#fecaca','#bfdbfe','#bbf7d0','#fde68a','#ddd6fe','#a5f3fc'];
+function initDefaultColors(){
+  defaultColors.forEach(c=>addColorItem(c));
+}
+initDefaultColors();
+
+function addColorItem(color){
+  let existed=appState.groupOrder.some(x=>x.toLowerCase()===color.toLowerCase());
+  if(!existed){
+    appState.groupOrder.push(color);
+  }
+  const item=document.createElement('div');
+  item.className='color-item';
+  item.style.backgroundColor=color;
+
+  const delBtn=document.createElement('div');
+  delBtn.className='color-delete';
+  delBtn.textContent='×';
+  delBtn.onclick=(e)=>{
+    e.stopPropagation();
+    if(confirm(`确定删除此颜色(${color})？\n(不会自动擦除已标记页面)`)){
+      item.remove();
+      let idx=appState.groupOrder.indexOf(color);
+      if(idx>=0) appState.groupOrder.splice(idx,1);
+    }
+  };
+  item.appendChild(delBtn);
+  item.onclick=()=>{
+    appState.currentColor=color;
+    showToast(`已选中颜色: ${color}`,color);
+    updateCursorDot();
+  };
+
+  colorPalette.prepend(item);
+}
+
+function showColorPicker(){
+  const inp=document.createElement('input');
+  inp.type='color';
+  inp.style.display='none';
+  document.body.appendChild(inp);
+  inp.click();
+  inp.onchange=()=>{
+    addColorItem(inp.value);
+    document.body.removeChild(inp);
+  };
+  inp.onblur=()=>{
+    document.body.removeChild(inp);
+  };
+}
+
+function toggleEraserMode(){
+  appState.eraserMode=!appState.eraserMode;
+  const btn=document.getElementById('eraserBtn');
+  if(appState.eraserMode){
+    btn.classList.add('active');
+    btn.textContent='橡皮功能：开启';
+  } else {
+    btn.classList.remove('active');
+    btn.textContent='橡皮功能：关闭';
+  }
+  updateCursorDot();
+}
+
+/* ================================================
+ * 3.1 查看预览模式(点击页面/缩略图 -> 大图弹窗)
+ * ================================================*/
+function toggleViewMode(){
+  appState.viewMode=!appState.viewMode;
+  const vb=document.getElementById('viewBtn');
+  if(appState.viewMode){
+    vb.classList.add('active');
+    vb.textContent='查看预览：开启';
+    showToast('现在点击任意页面/缩略图将进入大图查看模式','info');
+  } else {
+    vb.classList.remove('active');
+    vb.textContent='查看预览：关闭';
+  }
+}
+
+// 打开大图弹窗
+let imageModal=document.getElementById('imageModal');
+let imageModalImg=document.getElementById('imageModalImg');
+let modalIndex=0;
+let modalPageIds=[]; // 可左右翻页
+
+function openImageModal(pageId, allList=[]){
+  if(!appState.viewMode) return; // 只有在viewMode时才可点开
+
+  // 构建modalPageIds
+  if(allList.length){
+    modalPageIds=[...allList];
+  } else {
+    // 默认：所有可见(中间预览)？
+    modalPageIds=appState.mainPageOrder.map(x=>x.type==='pdf'?`pdf-${x.pageNum}`:x.id);
+  }
+  modalIndex=modalPageIds.indexOf(pageId);
+  if(modalIndex<0){
+    modalIndex=0;
+  }
+  showImageModalPage(modalIndex);
+  imageModal.classList.add('active');
+}
+function showImageModalPage(idx){
+  if(idx<0||idx>=modalPageIds.length) return;
+  let pid=modalPageIds[idx];
+  if(pid.startsWith('pdf-')){
+    // 需要离屏渲染(大图)
+    let pNum=parseInt(pid.replace('pdf-',''));
+    renderPDFPageToDataURL(pNum,1.0).then(url=>{
+      imageModalImg.src=url;
+    });
+  } else {
+    let imgObj=appState.imagePages.find(x=>x.id===pid);
+    if(imgObj){
+      imageModalImg.src=imgObj.dataURL;
+    }
+  }
+}
+async function renderPDFPageToDataURL(pageNum, scale){
+  if(!appState.pdfDoc) return '';
+  let page=await appState.pdfDoc.getPage(pageNum);
+  let vp=page.getViewport({scale});
+  let c=document.createElement('canvas');
+  c.width=vp.width; c.height=vp.height;
+  await page.render({canvasContext:c.getContext('2d'),viewport:vp}).promise;
+  return c.toDataURL('image/png');
+}
+
+function closeImageModal(){
+  imageModal.classList.remove('active');
+}
+// 左右
+function gotoModalPrevPage(){
+  modalIndex=Math.max(0, modalIndex-1);
+  showImageModalPage(modalIndex);
+}
+function gotoModalNextPage(){
+  modalIndex=Math.min(modalPageIds.length-1, modalIndex+1);
+  showImageModalPage(modalIndex);
+}
+
+/* ================================================
+ * 4. 导出系统
+ * ================================================*/
+function applyPreset(preset){
+  if(preset==='web'){
+    document.getElementById('dpiSelect').value='72';
+    updateQuality(80);
+  } else if(preset==='print'){
+    document.getElementById('dpiSelect').value='300';
+    updateQuality(100);
+  }
+}
+function updateFormatOptions(){
+  const fmt=document.getElementById('exportFormat').value;
+  const imgOpt=document.getElementById('imageOptions');
+  const pdfOpt=document.getElementById('pdfOptions');
+  if(fmt==='png'||fmt==='jpg'){
+    imgOpt.style.display='block';
+    pdfOpt.style.display='none';
+  } else {
+    imgOpt.style.display='none';
+    pdfOpt.style.display='block';
+  }
+}
+function updateQuality(val){
+  appState.exportSettings.quality=parseInt(val)/100;
+  document.getElementById('qualityValue').innerText=val;
+}
+function startExport(){
+  if(!appState.pdfDoc && !appState.imagePages.length){
+    showError('请先加载PDF或导入图片序列');
+    return;
+  }
+  showLoading('正在导出...');
+  appState.exportSettings.format=document.getElementById('exportFormat').value;
+  appState.exportSettings.dpi=parseInt(document.getElementById('dpiSelect').value,10);
+  appState.exportSettings.pdfVersion=document.getElementById('pdfVersion').value;
+  appState.exportSettings.compress=document.getElementById('compressPDF').checked;
+
+  let fmt=appState.exportSettings.format;
+  if(fmt==='png'||fmt==='jpg'){
+    exportGroupedImages(fmt).then(()=>{
+      hideLoading();
+      showToast('导出完成！','success');
+    }).catch(err=>{
+      hideLoading();
+      showError('导出失败:'+err);
+    });
+  } else if(fmt==='pdf-single'){
+    exportGroupedPDFSingle().then(()=>{
+      hideLoading();
+    }).catch(err=>{
+      hideLoading();
+      showError('导出失败:'+err);
+    });
+  } else {
+    exportGroupedPDFMulti().then(()=>{
+      hideLoading();
+    }).catch(err=>{
+      hideLoading();
+      showError('导出失败:'+err);
+    });
+  }
+}
+
+// color->(排好序的pageId[])
+function getMultiColorGroups(){
+  let groupMap={};
+  // 先统计
+  for(let pid in appState.pageColors){
+    let cset=appState.pageColors[pid];
+    if(cset&&cset.size>0){
+      for(let c of cset){
+        if(!groupMap[c]) groupMap[c]=[];
+        groupMap[c].push(pid);
+      }
+    }
+  }
+  // 应用用户自定义顺序(若有)
+  // 否则按 mainPageOrder 中的先后
+  let mainList = appState.mainPageOrder.map(x=>x.type==='pdf'?`pdf-${x.pageNum}`:x.id);
+  for(let c in groupMap){
+    // 如果 customPageOrder[c] 存在，则优先
+    if(appState.customPageOrder[c]){
+      // 仅保留原有的pid
+      let newArr=appState.customPageOrder[c].filter(pid=>groupMap[c].includes(pid));
+      groupMap[c]=newArr;
+    } else {
+      // 否则按照 mainList 顺序过滤
+      let newArr=[];
+      for(let pid of mainList){
+        if(groupMap[c].includes(pid)){
+          newArr.push(pid);
+        }
+      }
+      groupMap[c]=newArr;
+    }
+  }
+  return groupMap;
+}
+
+/* ========== 导出为图像 ========== */
+async function exportGroupedImages(fmt){
+  const groups=getMultiColorGroups();
+  const colorList=appState.groupOrder.filter(c=>groups[c]&&groups[c].length>0);
+  if(colorList.length===0){
+    showToast('没有任何可导出的分组','error');
+    return;
+  }
+  let idx=0;
+  for(let color of colorList){
+    idx++;
+    let pages=groups[color];
+    let cList=[];
+    for(let pid of pages){
+      let cvs=await renderPageOffscreen(pid, appState.exportSettings.dpi);
+      if(cvs) cList.push(cvs);
+    }
+    if(!cList.length) continue;
+    let bigBlob=await mergeCanvasesToLongImage(cList,fmt);
+    let name=appState.groupNames[color]||`group_${idx}`;
+    downloadBlob(bigBlob,`${name}.${fmt}`);
+  }
+}
+/* 离屏渲染(支持pdf-xxx / img-xxx) */
+async function renderPageOffscreen(pageId,dpi){
+  if(pageId.startsWith('pdf-')){
+    let pNum=parseInt(pageId.replace('pdf-',''));
+    if(!appState.pdfDoc) return null;
+    let page=await appState.pdfDoc.getPage(pNum);
+    let scale=dpi/72;
+    let vp=page.getViewport({scale});
+    let cv=document.createElement('canvas');
+    cv.width=vp.width; cv.height=vp.height;
+    await page.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise;
+    return cv;
+  } else {
+    // image
+    let imgObj=appState.imagePages.find(x=>x.id===pageId);
+    if(!imgObj) return null;
+    // 要放大/缩小？ 这里简单：不缩放
+    let imageData=new Image();
+    imageData.src=imgObj.dataURL;
+    await new Promise(res=>{
+      imageData.onload=res;
+      imageData.onerror=res;
+    });
+    // 生成离屏canvas
+    let cv=document.createElement('canvas');
+    cv.width=imageData.width; 
+    cv.height=imageData.height;
+    let ctx=cv.getContext('2d');
+    ctx.drawImage(imageData,0,0);
+    return cv;
+  }
+}
+// 拼成长图
+async function mergeCanvasesToLongImage(cvList,fmt){
+  let tw=0,th=0;
+  for(let c of cvList){
+    if(c.width>tw) tw=c.width;
+    th+=c.height;
+  }
+  let merged=document.createElement('canvas');
+  merged.width=tw; merged.height=th;
+  let ctx=merged.getContext('2d');
+  let y=0;
+  for(let c of cvList){
+    ctx.drawImage(c,0,y);
+    y+=c.height;
+  }
+  let mime=(fmt==='jpg')?'image/jpeg':'image/png';
+  let q=(fmt==='jpg')?appState.exportSettings.quality:1.0;
+  return new Promise(res=>{
+    merged.toBlob(b=>res(b),mime,q);
+  });
+}
+
+/* ========== 导出PDF(单文件) ========== */
+async function exportGroupedPDFSingle(){
+  const groups=getMultiColorGroups();
+  const colorList=appState.groupOrder.filter(c=>groups[c]&&groups[c].length>0);
+  if(!colorList.length){
+    showToast('没有可导出的分组','error');
+    return;
+  }
+  const pdfLib=window.PDFLib;
+  const outPdf=await pdfLib.PDFDocument.create();
+
+  let idx=0;
+  for(let color of colorList){
+    idx++;
+    let pages=groups[color];
+    if(!pages.length) continue;
+    let cList=[];
+    for(let pid of pages){
+      let c=await renderPageOffscreen(pid,appState.exportSettings.dpi);
+      if(c) cList.push(c);
+    }
+    if(!cList.length) continue;
+    let bigCv=await mergeCanvasDom(cList);
+    let img=bigCv.toDataURL('image/png');
+    let emb=await outPdf.embedPng(img);
+    let page=outPdf.addPage([bigCv.width,bigCv.height]);
+    page.drawImage(emb,{x:0,y:0,width:bigCv.width,height:bigCv.height});
+  }
+  let opt={};
+  if(appState.exportSettings.pdfVersion==='1.4'){
+    opt.useObjectStreams=false;
+  }
+  let bytes=await outPdf.save(opt);
+  downloadBlob(new Blob([bytes],{type:'application/pdf'}),"grouped_single.pdf");
+  showToast(`已导出${colorList.length}组到单个PDF!`,'success');
+}
+async function mergeCanvasDom(cList){
+  let w=0,h=0;
+  for(let c of cList){
+    w=Math.max(w,c.width);
+    h+=c.height;
+  }
+  let mc=document.createElement('canvas');
+  mc.width=w; mc.height=h;
+  let ctx=mc.getContext('2d');
+  let y=0;
+  for(let c of cList){
+    ctx.drawImage(c,0,y);
+    y+=c.height;
+  }
+  return mc;
+}
+
+/* ========== 导出PDF(多文件) ========== */
+async function exportGroupedPDFMulti(){
+  const groups=getMultiColorGroups();
+  const colorList=appState.groupOrder.filter(c=>groups[c]&&groups[c].length>0);
+  if(!colorList.length){
+    showToast('没有可导出的分组','error');
+    return;
+  }
+  const pdfLib=window.PDFLib;
+
+  let idx=0;
+  for(let color of colorList){
+    idx++;
+    let pages=groups[color];
+    if(!pages.length) continue;
+    let pdfDoc=await pdfLib.PDFDocument.create();
+    let cList=[];
+    for(let pid of pages){
+      let cc=await renderPageOffscreen(pid,appState.exportSettings.dpi);
+      if(cc) cList.push(cc);
+    }
+    if(!cList.length) continue;
+    let bigCv=await mergeCanvasDom(cList);
+    let img=bigCv.toDataURL('image/png');
+    let emb=await pdfDoc.embedPng(img);
+    let page=pdfDoc.addPage([bigCv.width,bigCv.height]);
+    page.drawImage(emb,{x:0,y:0,width:bigCv.width,height:bigCv.height});
+
+    let opt={};
+    if(appState.exportSettings.pdfVersion==='1.4'){
+      opt.useObjectStreams=false;
+    }
+    let bytes=await pdfDoc.save(opt);
+    let name=appState.groupNames[color]||`group_${idx}`;
+    downloadBlob(new Blob([bytes],{type:'application/pdf'}),`${name}.pdf`);
+  }
+  showToast('已导出多个PDF文件！','success');
+}
+
+
+/* ================================================
+ * 5. 通用工具 + Toast
+ * ================================================*/
+function downloadBlob(blob,filename){
+  let url=URL.createObjectURL(blob);
+  let a=document.createElement('a');
+  a.href=url;
+  a.download=filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+function updateProgress(percent){
+  let pb=document.getElementById('globalProgress');
+  pb.style.width=Math.min(100,percent)+'%';
+}
+function showLoading(msg){
+  updateProgress(0);
+  showToast(msg,'info');
+}
+function hideLoading(){
+  updateProgress(0);
+  hideToast();
+}
+
+let toastTimer=null, isMouseOverToast=false;
+function showToast(message,typeOrColor='info'){
+  let t=document.getElementById('toast');
+  let tm=document.getElementById('toastMessage');
+  tm.textContent=message;
+  t.classList.remove('slide-out');
+  t.classList.add('show');
+  t.style.transform='translateX(0)';
+  t.style.opacity='1';
+
+  if(typeof typeOrColor==='string' && typeOrColor.startsWith('#')){
+    t.style.borderLeftColor=typeOrColor;
+  } else {
+    t.style.borderLeftColor='transparent';
+  }
+  if(toastTimer) clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>{
+    if(!isMouseOverToast){
+      hideToastSlide();
+    }
+  },3000);
+}
+function hideToastSlide(){
+  let t=document.getElementById('toast');
+  t.classList.add('slide-out');
+  toastTimer=setTimeout(()=>{
+    t.classList.remove('show','slide-out');
+  },400);
+}
+function hideToast(){
+  if(toastTimer) clearTimeout(toastTimer);
+  let t=document.getElementById('toast');
+  t.classList.remove('show','slide-out');
+}
+function showError(msg){
+  hideLoading();
+  showToast(msg,'#ef4444');
+}
+const toastEl=document.getElementById('toast');
+toastEl.addEventListener('mouseenter',()=>{
+  isMouseOverToast=true;
+  if(toastEl.classList.contains('slide-out')){
+    toastEl.classList.remove('slide-out');
+    toastEl.style.transform='translateX(0)';
+    toastEl.style.opacity='1';
+  }
+});
+toastEl.addEventListener('mouseleave',()=>{
+  isMouseOverToast=false;
+  toastTimer=setTimeout(()=>{
+    if(!isMouseOverToast){
+      hideToastSlide();
+    }
+  },3000);
+});
+
+
+/* ================================================
+ * 6. 右侧合并预览 & 分组管理
+ * ================================================*/
+const mergedPreviewArea=document.getElementById('mergedPreviewArea');
+
+function updateMergedPreview(){
+  mergedPreviewArea.querySelectorAll('.group-preview').forEach(x=>x.remove());
+  let groups=getMultiColorGroups();
+  let idx=0;
+  for(let color of appState.groupOrder){
+    let pages=groups[color];
+    if(!pages||!pages.length) continue;
+    idx++;
+
+    let groupDiv=document.createElement('div');
+    groupDiv.className='group-preview';
+    groupDiv.dataset.color=color;
+    groupDiv.draggable=true;
+
+    // 分组拖拽
+    groupDiv.addEventListener('dragstart',groupDragStart);
+    groupDiv.addEventListener('dragend',groupDragEnd);
+    groupDiv.addEventListener('dragover',groupDragOver);
+    groupDiv.addEventListener('drop',groupDrop);
+
+    let header=document.createElement('div');
+    header.className='group-header';
+
+    let cbox=document.createElement('div');
+    cbox.className='group-color-box';
+    cbox.style.backgroundColor=color;
+    header.appendChild(cbox);
+
+    let inp=document.createElement('input');
+    inp.className='group-title-input';
+    inp.placeholder=`分组${idx}`;
+    if(appState.groupNames[color]){
+      inp.value=appState.groupNames[color];
+    }
+    inp.onchange=(ev)=>{
+      appState.groupNames[color]=ev.target.value;
+    };
+    header.appendChild(inp);
+
+    let fsBtn=document.createElement('button');
+    fsBtn.className='group-fullscreen-btn';
+    fsBtn.textContent='全屏预览';
+    fsBtn.onclick=()=>openFullscreenPreview(color);
+    header.appendChild(fsBtn);
+
+    groupDiv.appendChild(header);
+
+    let removeBtn=document.createElement('button');
+    removeBtn.className='group-remove-btn';
+    removeBtn.textContent='X';
+    removeBtn.onclick=()=>removeGroup(color,groupDiv);
+    groupDiv.appendChild(removeBtn);
+
+    // 合并后小缩略图
+    let mergedImg=document.createElement('img');
+    mergedImg.className='group-merged-preview-img';
+    groupDiv.appendChild(mergedImg);
+
+    // 页码
+    let label=document.createElement('div');
+    label.className='group-pages';
+    label.textContent='页码：'+pagesToRangeString(pages);
+    groupDiv.appendChild(label);
+
+    let scrollWrap=document.createElement('div');
+    scrollWrap.className='preview-scroll';
+    groupDiv.appendChild(scrollWrap);
+
+    (async()=>{
+      // 小页缩略
+      for(let pid of pages){
+        let thumb=document.createElement('div');
+        thumb.className='page-thumb';
+        thumb.dataset.pageid=pid;
+        thumb.draggable=true;
+
+        thumb.addEventListener('dragstart',pageThumbDragStart);
+        thumb.addEventListener('dragend',pageThumbDragEnd);
+        thumb.addEventListener('dragover',pageThumbDragOver);
+        thumb.addEventListener('drop',pageThumbDrop);
+
+        let cv=await renderPageOffscreen(pid,36);
+        if(cv){
+          let im=document.createElement('img');
+          im.src=cv.toDataURL('image/png');
+          thumb.appendChild(im);
+          // 如果处于查看预览模式 => 点击看大图
+          thumb.onclick=()=>{
+            if(appState.viewMode){
+              openImageModal(pid,pages);
+            }
+          };
+        }
+        scrollWrap.appendChild(thumb);
+      }
+      // 合并图(小dpi=24)
+      let cList=[];
+      for(let pid of pages){
+        let cc=await renderPageOffscreen(pid,24);
+        if(cc) cList.push(cc);
+      }
+      if(cList.length>0){
+        let blob=await mergeCanvasesToLongImage(cList,'png');
+        mergedImg.src=URL.createObjectURL(blob);
+      }
+    })();
+
+    mergedPreviewArea.appendChild(groupDiv);
+  }
+}
+function removeGroup(color,div){
+  if(!confirm(`确定删除此分组(${color})? 这会擦除对应页面的颜色标记。`))return;
+  // 清除
+  for(let pid in appState.pageColors){
+    if(appState.pageColors[pid].has(color)){
+      appState.pageColors[pid].delete(color);
+      // 同步中间预览边框
+      const cont=previewArea.querySelector(`.page-container[data-pageid='${pid}']`);
+      if(cont) updatePageContainerBorder(cont,pid);
+    }
+  }
+  let idx=appState.groupOrder.indexOf(color);
+  if(idx>=0) appState.groupOrder.splice(idx,1);
+  delete appState.groupNames[color];
+  delete appState.customPageOrder[color];
+  // 颜色面板移除
+  let items=[...colorPalette.querySelectorAll('.color-item')];
+  for(let it of items){
+    if(it.style.backgroundColor.toLowerCase()===color.toLowerCase()){
+      it.remove();
+    }
+  }
+  div.remove();
+  updateMergedPreview();
+}
+
+// 分组拖拽
+let draggedGroup=null;
+function groupDragStart(e){
+  e.currentTarget.classList.add('dragging');
+  draggedGroup=e.currentTarget;
+}
+function groupDragEnd(e){
+  e.currentTarget.classList.remove('dragging');
+  draggedGroup=null;
+  saveGroupOrderFromDOM();
+}
+function groupDragOver(e){
+  e.preventDefault();
+  let tgt=e.currentTarget;
+  if(tgt!==draggedGroup){
+    tgt.classList.add('droptarget-hover');
+  }
+}
+function groupDrop(e){
+  e.preventDefault();
+  let tgt=e.currentTarget;
+  tgt.classList.remove('droptarget-hover');
+  if(draggedGroup&&draggedGroup!==tgt){
+    let container=tgt.parentElement;
+    let arr=[...container.querySelectorAll('.group-preview')];
+    let drI=arr.indexOf(draggedGroup);
+    let tgI=arr.indexOf(tgt);
+    if(drI<tgI){
+      container.insertBefore(draggedGroup,tgt.nextSibling);
+    } else {
+      container.insertBefore(draggedGroup,tgt);
+    }
+  }
+}
+function saveGroupOrderFromDOM(){
+  let arr=[...mergedPreviewArea.querySelectorAll('.group-preview')];
+  appState.groupOrder=arr.map(x=>x.dataset.color);
+}
+
+/* 缩略图(分组内部)拖拽 */
+let draggedThumb=null;
+function pageThumbDragStart(e){
+  draggedThumb=e.currentTarget;
+  draggedThumb.classList.add('dragging');
+}
+function pageThumbDragEnd(e){
+  if(draggedThumb){
+    draggedThumb.classList.remove('dragging');
+    draggedThumb=null;
+  }
+  let gp=e.currentTarget.closest('.group-preview');
+  if(gp) updateGroupPagesOrder(gp);
+}
+function pageThumbDragOver(e){
+  e.preventDefault();
+  let tgt=e.currentTarget;
+  if(tgt!==draggedThumb){
+    tgt.classList.add('droptarget-hover');
+  }
+}
+function pageThumbDrop(e){
+  e.preventDefault();
+  let tgt=e.currentTarget;
+  tgt.classList.remove('droptarget-hover');
+  if(draggedThumb&&draggedThumb!==tgt){
+    let container=tgt.parentElement;
+    let arr=[...container.querySelectorAll('.page-thumb')];
+    let drI=arr.indexOf(draggedThumb);
+    let tgI=arr.indexOf(tgt);
+    if(drI<tgI){
+      container.insertBefore(draggedThumb,tgt.nextSibling);
+    } else {
+      container.insertBefore(draggedThumb,tgt);
+    }
+  }
+}
+function updateGroupPagesOrder(groupDiv){
+  let color=groupDiv.dataset.color;
+  let thumbs=[...groupDiv.querySelectorAll('.page-thumb')];
+  let newPages=thumbs.map(t=>t.dataset.pageid);
+  // 更新 customPageOrder[color]
+  appState.customPageOrder[color]=newPages;
+  // 更新 '页码:...'
+  let label=groupDiv.querySelector('.group-pages');
+  if(label){
+    label.textContent='页码：'+pagesToRangeString(newPages);
+  }
+  // 重新合并缩略图
+  let mergedImg=groupDiv.querySelector('.group-merged-preview-img');
+  if(!mergedImg)return;
+  (async()=>{
+    let cList=[];
+    for(let pid of newPages){
+      let cc=await renderPageOffscreen(pid,24);
+      if(cc) cList.push(cc);
+    }
+    if(cList.length>0){
+      let blob=await mergeCanvasesToLongImage(cList,'png');
+      mergedImg.src=URL.createObjectURL(blob);
+    } else {
+      mergedImg.src='';
+    }
+  })();
+}
+
+
+/* 一键重排 */
+function reorderGroupNames(){
+  let idx=1;
+  for(let c of appState.groupOrder){
+    appState.groupNames[c]=`分组${idx}`;
+    idx++;
+  }
+  updateMergedPreview();
+}
+/* 清空分组 */
+function clearAllGroups(){
+  if(!confirm('确定要清空所有分组(颜色)吗？\n这会移除所有标记！'))return;
+  for(let pid in appState.pageColors){
+    appState.pageColors[pid].clear();
+  }
+  appState.groupOrder=[];
+  appState.groupNames={};
+  appState.customPageOrder={};
+  // 同时更新中间预览
+  let allC=[...previewArea.querySelectorAll('.page-container')];
+  for(let c of allC){
+    c.style.borderColor='transparent';
+  }
+  // 清空调色板
+  let items=[...colorPalette.querySelectorAll('.color-item')];
+  for(let it of items) it.remove();
+  initDefaultColors();
+  updateMergedPreview();
+  showToast('已清空所有分组','info');
+}
+
+/* 生成类似 "pdf-1,pdf-2,pdf-3" => "1-3" ；"img-001,img-002" => "1-2"? 
+ * 这里简单做：只解析pdf-x => x, 其余合并成"?". 
+ * 你也可进一步把img-xxx当作数字xxx.
+ */
+function pagesToRangeString(pidArr){
+  if(!pidArr||!pidArr.length)return '';
+  let nums=[];
+  for(let p of pidArr){
+    if(p.startsWith('pdf-')){
+      let n=parseInt(p.replace('pdf-',''));
+      nums.push(n);
+    } else {
+      // 解析img
+      let id=p.replace('img-','');
+      let n=parseInt(id,10);
+      if(!isNaN(n)) nums.push(n);
+      else nums.push('?');
+    }
+  }
+  // 排序
+  nums.sort((a,b)=>(a-b));
+  // 分段
+  let res=[];
+  let start=nums[0], prev=nums[0];
+  for(let i=1;i<nums.length;i++){
+    let cur=nums[i];
+    if(typeof cur==='number'&&typeof prev==='number'&&cur===prev+1){
+      prev=cur;
+    } else {
+      if(start===prev) res.push(String(start));
+      else res.push(`${start}-${prev}`);
+      start=cur;
+      prev=cur;
+    }
+  }
+  if(start===prev) res.push(String(start));
+  else res.push(`${start}-${prev}`);
+  return res.join(',');
+}
+
+
+/* ================================================
+ * 7. 分组全屏预览
+ * ================================================*/
+const fullscreenModal=document.getElementById('fullscreenModal');
+const fsLeftPanel=document.getElementById('fsLeftPanel');
+const fsPreviewImgs=document.getElementById('fsPreviewImgs');
+let fsCurrentColor=null;
+let fsCurrentPages=[];
+
+function openFullscreenPreview(color){
+  fsCurrentColor=color;
+  const groups=getMultiColorGroups();
+  fsCurrentPages=[...(groups[color]||[])];
+  fullscreenModal.classList.add('active');
+  document.getElementById('fsLeftTitle').textContent=`分组预览: ${appState.groupNames[color]||color}`;
+  refreshFsLeftPanel();
+  refreshFsPreview();
+}
+function closeFullscreenModal(){
+  saveFsPageOrder();
+  fullscreenModal.classList.remove('active');
+}
+function refreshFsLeftPanel(){
+  fsLeftPanel.querySelectorAll('.page-item').forEach(x=>x.remove());
+  fsCurrentPages.forEach(pid=>{
+    let item=document.createElement('div');
+    item.className='page-item';
+    item.dataset.pageid=pid;
+    item.draggable=true;
+
+    item.addEventListener('dragstart',ev=>ev.currentTarget.classList.add('dragging'));
+    item.addEventListener('dragend',ev=>{
+      ev.currentTarget.classList.remove('dragging');
+      reorderFsPages();
+    });
+    item.addEventListener('dragover',ev=>{
+      ev.preventDefault();
+      if(ev.currentTarget!==item){
+        ev.currentTarget.classList.add('droptarget-hover');
+      }
+    });
+    item.addEventListener('dragleave',ev=>{
+      ev.currentTarget.classList.remove('droptarget-hover');
+    });
+    item.addEventListener('drop',ev=>{
+      ev.preventDefault();
+      let draggingItem=fsLeftPanel.querySelector('.page-item.dragging');
+      const t=ev.currentTarget;
+      t.classList.remove('droptarget-hover');
+      if(draggingItem && draggingItem!==t){
+        let children=[...fsLeftPanel.querySelectorAll('.page-item')];
+        let drI=children.indexOf(draggingItem);
+        let tgI=children.indexOf(t);
+        if(drI<tgI){
+          fsLeftPanel.insertBefore(draggingItem,t.nextSibling);
+        } else {
+          fsLeftPanel.insertBefore(draggingItem,t);
+        }
+      }
+    });
+
+    // 显示缩略
+    let thumb=document.createElement('img');
+    renderPageOffscreen(pid,24).then(cv=>{
+      if(cv){
+        thumb.src=cv.toDataURL('image/png');
+      } else{
+        thumb.src='';
+      }
+    });
+    item.appendChild(thumb);
+
+    let sp=document.createElement('span');
+    sp.textContent=pid;
+    item.appendChild(sp);
+
+    let delBtn=document.createElement('button');
+    delBtn.className='delete-page-btn';
+    delBtn.textContent='×';
+    delBtn.onclick=()=>{
+      fsCurrentPages=fsCurrentPages.filter(x=>x!==pid);
+      if(appState.pageColors[pid]?.has(fsCurrentColor)){
+        appState.pageColors[pid].delete(fsCurrentColor);
+        // 更新中间预览
+        let c=previewArea.querySelector(`.page-container[data-pageid='${pid}']`);
+        if(c) updatePageContainerBorder(c,pid);
+      }
+      refreshFsLeftPanel();
+      refreshFsPreview();
+      updateMergedPreview();
+    };
+    item.appendChild(delBtn);
+
+    fsLeftPanel.appendChild(item);
+  });
+}
+function reorderFsPages(){
+  let items=[...fsLeftPanel.querySelectorAll('.page-item')];
+  fsCurrentPages=items.map(x=>x.dataset.pageid);
+  refreshFsPreview();
+}
+async function refreshFsPreview(){
+  fsPreviewImgs.innerHTML='';
+  if(!fsCurrentPages.length){
+    fsPreviewImgs.textContent='(暂无页面)';
+    return;
+  }
+  let cList=[];
+  for(let pid of fsCurrentPages){
+    let cc=await renderPageOffscreen(pid,72);
+    if(cc) cList.push(cc);
+  }
+  let blob=await mergeCanvasesToLongImage(cList,'png');
+  if(blob){
+    let url=URL.createObjectURL(blob);
+    let im=document.createElement('img');
+    im.src=url;
+    im.className='preview-large-img';
+    fsPreviewImgs.appendChild(im);
+  }
+}
+function sortFsPagesByNumber(){
+  // 仅对pdf-x的数字+img-x的数字做简单排序
+  fsCurrentPages.sort((a,b)=>{
+    return parsePageIdNum(a)-parsePageIdNum(b);
+  });
+  refreshFsLeftPanel();
+  refreshFsPreview();
+}
+function parsePageIdNum(pid){
+  if(pid.startsWith('pdf-')){
+    return parseInt(pid.replace('pdf-',''));
+  } else if(pid.startsWith('img-')){
+    return parseInt(pid.replace('img-',''));
+  }
+  return 999999;
+}
+function saveFsPageOrder(){
+  appState.customPageOrder[fsCurrentColor]=[...fsCurrentPages];
+  updateMergedPreview();
+}
+
+/* ================================================
+ * 8. 鼠标光标(颜色点/橡皮), 并在“导出设置区”和“合并预览区”中隐藏
+ * ================================================*/
+const cursorDot=document.getElementById('cursorDot');
+document.addEventListener('mousemove',(e)=>{
+  cursorDot.style.left=(e.clientX - cursorDot.offsetWidth/2)+'px';
+  cursorDot.style.top=(e.clientY - cursorDot.offsetHeight/2)+'px';
+});
+function updateCursorDot(){
+  if(appState.eraserMode){
+    // 橡皮(空心)
+    cursorDot.style.border=`2px solid ${appState.currentColor}`;
+    cursorDot.style.backgroundColor='transparent';
+    cursorDot.style.width='24px'; cursorDot.style.height='24px';
+  } else {
+    // 普通颜色
+    cursorDot.style.border='none';
+    cursorDot.style.backgroundColor=appState.currentColor;
+    cursorDot.style.width='16px'; cursorDot.style.height='16px';
+  }
+}
+cursorDot.style.display='block';
+updateCursorDot();
+
+/* 当鼠标移入“导出设置” 或 “合并预览 & 分组管理”时隐藏光标 */
+const exportSettingsArea=document.getElementById('exportSettingsArea');
+exportSettingsArea.addEventListener('mouseenter',()=>cursorDot.style.display='none');
+exportSettingsArea.addEventListener('mouseleave',()=>{
+  cursorDot.style.display='block';
+  updateCursorDot();
+});
+const mergedArea=document.getElementById('mergedPreviewArea');
+mergedArea.addEventListener('mouseenter',()=>cursorDot.style.display='none');
+mergedArea.addEventListener('mouseleave',()=>{
+  cursorDot.style.display='block';
+  updateCursorDot();
+});
+
+/* 初始化UI */
+updateFormatOptions();
+</script>
+</body>
+</html>
